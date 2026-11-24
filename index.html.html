@@ -177,7 +177,7 @@ function vToday(){
   <div class="stat"><span>Already spoken for (bills, debt, savings)</span><b>${money0(d.commit)}</b></div>
   <div class="stat"><span>Spent so far</span><b>${money0(d.spent)}</b></div></div></div>
   <div class="grid">
-   <div class="card"><h3>Bills to pay</h3>${bills.length?bills.map(b=>`<div class="row"><div class="grow"><div class="name">${esc(b.name)}</div><div class="muted small">Due on the ${b.day}${isCur?(b.day<today?' · overdue?':b.day===today?' · today':' · in '+(b.day-today)+' days'):''}</div></div><b class="amt">${money(b.amount)}</b><button class="btn sm ghost" onclick="togglePaid('${b.id}')">Paid</button></div>`).join(''):'<div class="empty">All bills paid. 🎉</div>'}</div>
+   <div class="card"><h3>Bills to pay</h3>${bills.length?bills.map(b=>`<div class="row"><div class="grow"><div class="name">${esc(b.name)}</div><div class="muted small">Due on the ${b.day}${isCur?(b.day<today?' · overdue':b.day===today?' · today':' · in '+(b.day-today)+' days'):''}</div></div><b class="amt">${money(b.amount)}</b><button class="btn sm ghost" onclick="togglePaid('${b.id}')">Paid</button></div>`).join(''):'<div class="empty">All bills paid. 🎉</div>'}</div>
    <div class="card"><h3>Next payday</h3>${nextPay?`<div class="name" style="font-size:20px;font-weight:800">${new Date(nextPay.date+'T00:00').toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'})}</div><div class="muted">${esc(nextPay.name)} · ${money(nextPay.amount)}</div>`:'<div class="empty">No upcoming paycheck added.</div>'}
    <h3 style="margin-top:16px">Savings</h3>${S.funds.slice(0,3).map(f=>`<div style="margin-bottom:8px"><div class="stat" style="border:0;padding:2px 0"><span>${esc(f.name)}</span><b>${money0(f.saved)} / ${money0(f.goal)}</b></div><div class="bar good"><i style="width:${f.goal?clamp(f.saved/f.goal*100,0,100):0}%"></i></div></div>`).join('')||'<div class="muted small">No savings funds yet.</div>'}
    <h3 style="margin-top:16px">Debt left</h3><b style="font-size:20px">${money0(S.debts.reduce((a,x)=>a+x.balance,0))}</b></div>
@@ -267,10 +267,11 @@ function vSettings(){
 function exportData(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,1)],{type:'application/json'}));a.download='steady-backup-'+todayISO()+'.json';a.click();toast('Backup downloaded')}
 function importData(i){const f=i.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{S=Object.assign(fresh(),JSON.parse(r.result));save();render();toast('Restored')}catch(e){alert('That file could not be read.')}};r.readAsText(f)}
 function sample(){
-  const m=curYM(),t=parseInt(todayISO().slice(8)),dd=d=>m+'-'+pad(Math.min(d,dim(m)));
-  S=Object.assign(fresh(),{month:m,view:'today',cur:S.cur,theme:S.theme,
-   income:[{id:uid(),name:'Paycheck',amount:1650,date:dd(5)},{id:uid(),name:'Paycheck',amount:1650,date:dd(20)}],
-   bills:[['Rent',1250,1],['Netflix',15.49,8],['Phone',45,12],['Internet',60,15],['Car insurance',110,22]].map(([name,amount,day])=>({id:uid(),name,amount,day})),
+  const m=curYM(),t=parseInt(todayISO().slice(8)),n=dim(m),dd=d=>m+'-'+pad(clamp(d,1,n));
+  const bills=[['Rent',1250,1,1],['Netflix',15.49,Math.max(2,t-14),1],['Phone',45,Math.max(3,t-9),1],['Internet',60,Math.max(4,t-5),1],['Car insurance',110,Math.min(t+2,n),0],['Gym',29.99,Math.min(t+5,n),0],['Electric',78,Math.min(t+8,n),0]].map(([name,amount,day,paid])=>({id:uid(),name,amount,day,paid}));
+  const paid={};bills.forEach(b=>{if(b.paid)paid[m+':'+b.id]=1;delete b.paid});
+  S=Object.assign(fresh(),{month:m,view:'today',cur:S.cur,theme:S.theme,paid,bills,
+   income:[{id:uid(),name:'Paycheck',amount:1650,date:dd(Math.max(1,t-9))},{id:uid(),name:'Paycheck',amount:1650,date:dd(t+5)}],
    expenses:[['Groceries',64.2,'Groceries',1],['Coffee',5.5,'Eating out',2],['Gas',42,'Transport',3],['Pizza night',28,'Eating out',4],['Groceries',81.35,'Groceries',6],['Movie',16,'Fun',8],['New shoes',59,'Shopping',9]].filter(e=>e[3]<=Math.max(t,3)).map(([name,amount,cat,d])=>({id:uid(),name,amount,cat,date:dd(d)})),
    funds:[{id:uid(),name:'Emergency fund',goal:3000,saved:850,monthly:100},{id:uid(),name:'Beach trip',goal:1500,saved:300,monthly:50}],
    debts:[{id:uid(),name:'Credit card',start:3000,balance:2400,rate:22.9,min:70},{id:uid(),name:'Student loan',start:9000,balance:8200,rate:5.5,min:120}]});
